@@ -61,7 +61,11 @@ export default function createApp(express, bodyParser, createReadStream, current
     app.use(bodyParser.urlencoded({ extended: false }));
     app.use(bodyParser.json());
     app.use(corsMiddleware);
-
+    
+    app.get('/', (_req, res) => {
+        res.set(TEXT_PLAIN_HEADER).send(SYSTEM_LOGIN);
+    });
+    
     app.get("/login/", (_req, res) => {
         res.set(TEXT_PLAIN_HEADER).send(SYSTEM_LOGIN);
     });
@@ -93,7 +97,7 @@ export default function createApp(express, bodyParser, createReadStream, current
             res.status(500).send(err.toString());
         }
     });
-
+    
     app.all(/.*/, (_req, res) => {
         res.set(TEXT_PLAIN_HEADER).send(SYSTEM_LOGIN);
     });
