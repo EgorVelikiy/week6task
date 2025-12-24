@@ -65,7 +65,7 @@ export default function createApp(express, bodyParser, createReadStream, current
     app.get('/', (_req, res) => {
         res.set(TEXT_PLAIN_HEADER).send(SYSTEM_LOGIN);
     });
-    
+
     app.get("/login/", (_req, res) => {
         res.set(TEXT_PLAIN_HEADER).send(SYSTEM_LOGIN);
     });
