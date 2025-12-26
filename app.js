@@ -39,6 +39,10 @@ export default function (express, bodyParser, createReadStream, crypto, http) {
         next();
     })
 
+    app.get("/", (_req, res) => {
+        res.send(SYSTEM_LOGIN);
+    });
+
     app.use((req, res, next) => {
         if (!req.originalUrl.endsWith("/")) {
             res.redirect(307, req.originalUrl + "/");
