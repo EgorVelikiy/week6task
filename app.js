@@ -1,70 +1,44 @@
-import * as crypto from "crypto";
-import http from 'http';
-
-const CORS_HEADERS = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET,HEAD,OPTIONS,POST,PUT",
-    "Access-Control-Allow-Headers": "*",
-};
-
-const TEXT_PLAIN_HEADER = {
-    "Content-Type": "text/plain; charset=utf-8",
-};
+const TEXT_PLAIN_HEADER = { "Content-Type": "text/plain; charset=utf-8", };
 
 const SYSTEM_LOGIN = "20cf5726-c4a6-4653-b049-6e72b934e3d4";
-
-function corsMiddleware(req, res, next) {
-    res.set(CORS_HEADERS);
-    if (req.method === "OPTIONS") return res.sendStatus(204);
-    next();
-}
 
 function readFileAsync(filePath, createReadStream) {
     return new Promise((resolve, reject) => {
         const chunks = [];
         const stream = createReadStream(filePath);
-
         stream.on("data", (chunk) => chunks.push(chunk));
         stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
         stream.on("error", (err) => reject(err));
     });
 }
 
-function generateSha1Hash(text) {
+function generateSha1Hash(text, crypto) {
     return crypto.createHash("sha1").update(text).digest("hex");
 }
 
-function readHttpResponse(response) {
-    return new Promise((resolve, reject) => {
-        const chunks = [];
-        response.on("data", (chunk) => chunks.push(chunk));
-        response.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
-        response.on("error", (err) => reject(err));
-    });
-}
-
-async function fetchUrlData(url) {
-    return new Promise((resolve, reject) => {
-        http.get(url, async (response) => {
-            try {
-                const data = await readHttpResponse(response);
-                resolve(data);
-            } catch (err) {
-                reject(err);
-            }
-        }).on("error", reject);
-    });
-}
-
-export default function createApp(express, bodyParser, createReadStream, currentFilePath) {
+export default function (express, bodyParser, createReadStream, crypto, http) {
     const app = express();
-
     app.use(bodyParser.urlencoded({ extended: false }));
     app.use(bodyParser.json());
-    app.use(corsMiddleware);
-    
-    app.get('/', (_req, res) => {
-        res.set(TEXT_PLAIN_HEADER).send(SYSTEM_LOGIN);
+
+    app.use((req, res, next) => {
+        res.set({
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET,HEAD,OPTIONS,POST,PUT,PATCH,DELETE",
+            "Access-Control-Allow-Headers": "*",
+        });
+        if (req.method === "OPTIONS") {
+            res.sendStatus(204); return;
+        }
+        next();
+    })
+
+    app.use((req, res, next) => {
+        if (!req.originalUrl.endsWith("/")) {
+            res.redirect(301, req.originalUrl + "/");
+            return;
+        }
+        next();
     });
 
     app.get("/login/", (_req, res) => {
@@ -72,34 +46,30 @@ export default function createApp(express, bodyParser, createReadStream, current
     });
 
     app.get("/code/", async (_req, res) => {
-        const fileContent = await readFileAsync(currentFilePath, createReadStream);
+        const appJsPath = decodeURIComponent(import.meta.url.substring(8));
+        const fileContent = await readFileAsync(appJsPath, createReadStream);
         res.set(TEXT_PLAIN_HEADER).send(fileContent);
     });
 
     app.get("/sha1/:input/", (req, res) => {
-        const hash = generateSha1Hash(req.params.input);
+        const hash = generateSha1Hash(req.params.input, crypto)
         res.set(TEXT_PLAIN_HEADER).send(hash);
     });
 
-    app.get("/req/", async (req, res) => {
-        try {
-            const data = await fetchUrlData(req.query.addr);
-            res.set(TEXT_PLAIN_HEADER).send(data);
-        } catch (err) {
-            res.status(500).send(err.toString());
-        }
+    app.all("/req/", (req, res) => {
+        const addr = req.method === "POST" ? req.body.addr : req.query.addr;
+        http.get(addr, response => {
+            let data = "";
+            response.on("data", chunk => {
+                data += chunk;
+            });
+            response.on("end", () => {
+                res.set(TEXT_PLAIN_HEADER).send(data);
+            });
+        });
     });
 
-    app.post("/req/", async (req, res) => {
-        try {
-            const data = await fetchUrlData(req.body.addr);
-            res.set(TEXT_PLAIN_HEADER).send(data);
-        } catch (err) {
-            res.status(500).send(err.toString());
-        }
-    });
-    
-    app.all(/.*/, (_req, res) => {
+    app.all(/.*/, (req, res) => {
         res.set(TEXT_PLAIN_HEADER).send(SYSTEM_LOGIN);
     });
 
