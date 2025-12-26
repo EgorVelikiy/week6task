@@ -1,4 +1,5 @@
-import * as crypto from "crypto"
+import * as crypto from "crypto";
+import http from 'http';
 
 const CORS_HEADERS = {
     "Access-Control-Allow-Origin": "*",
