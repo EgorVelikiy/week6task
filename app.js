@@ -1,3 +1,9 @@
+import { fileURLToPath } from "url";
+import path from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const TEXT_PLAIN_HEADER = { "Content-Type": "text/plain; charset=utf-8", };
 
 const SYSTEM_LOGIN = "20cf5726-c4a6-4653-b049-6e72b934e3d4";
@@ -35,7 +41,7 @@ export default function (express, bodyParser, createReadStream, crypto, http) {
 
     app.use((req, res, next) => {
         if (!req.originalUrl.endsWith("/")) {
-            res.redirect(301, req.originalUrl + "/");
+            res.redirect(307, req.originalUrl + "/");
             return;
         }
         next();
@@ -46,7 +52,7 @@ export default function (express, bodyParser, createReadStream, crypto, http) {
     });
 
     app.get("/code/", async (_req, res) => {
-        const appJsPath = decodeURIComponent(import.meta.url.substring(8));
+        const appJsPath = path.join(__dirname, "app.js");
         const fileContent = await readFileAsync(appJsPath, createReadStream);
         res.set(TEXT_PLAIN_HEADER).send(fileContent);
     });
